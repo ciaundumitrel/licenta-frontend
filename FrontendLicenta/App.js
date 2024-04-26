@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Button } from 'react-native';
 import { Audio } from 'expo-av';
 import { io } from 'socket.io-client';
 import * as FileSystem from 'expo-file-system';
-import { socket } from './socket';
+import {socket, uploadChunksToServer} from './socket';
 
 const URL = 'http://192.168.1.2:8000/';
 
@@ -12,11 +12,15 @@ const URL = 'http://192.168.1.2:8000/';
 export default function App() {
   const [recording, setRecording] = React.useState();
   const [recordings, setRecordings] = React.useState([]);
+  const [sending, setSending] = useState(false);
+  const [recordingBackLog, setRecordingBackLog] = useState([]);
+
   const [isRecording, setIsRecording] = React.useState(false);
   const [prevLen, setPrevLen] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const [transport, setTransport] = useState('N/A');
-
+  let sum = 0;
+  let p_len = 0;
 
   useEffect(() => {
     if (socket.connected) {
@@ -46,73 +50,54 @@ export default function App() {
     };
   }, []);
 
-  const convertMP4ToBase64 = async (uri) => {
+const convertMP4ToBase64 = async (uri, delay = 0) => {
   try {
     // Read the file
     const fileContent = await FileSystem.readAsStringAsync(uri, {
       encoding: FileSystem.EncodingType.Base64,
+      position: 0,
+      length: 100
     });
 
-    // Return base64 encoded content
+    // Introduce optional delay (if delay is a positive number)
+    if (delay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+
     return fileContent;
   } catch (error) {
     console.error('Error converting MP4 to base64:', error);
     return null;
   }
 };
-  async function startRecording() {
-    let p_len = 0;
-    try {
-      const perm = await Audio.requestPermissionsAsync();
-      if (perm.status === "granted") {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: true,
-          playsInSilentModeIOS: true
-        });
-        const recordingInstance = new Audio.Recording();
-        await recordingInstance.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
-        setRecording(recordingInstance);
 
-        recordingInstance.setOnRecordingStatusUpdate(async (status) => {
-        // const base64 = await recordingInstance.getBase64Async();
-        // console.log(base64);
+async function startRecording() {
 
-        const duration = status.durationMillis / 1000;
-        const info = await FileSystem.getInfoAsync(recordingInstance.getURI());
-        const uri = info.uri;
-        // console.log(uri);
-        convertMP4ToBase64(uri)
-          .then((fileContent) => {
-            if (fileContent) {
-              // console.log('File content:', fileContent);
-              const currLen = parseInt(info.size);
-              console.log(p_len, currLen);
-              console.log(fileContent.slice(prevLen, currLen));
-              socket.emit('audioData', fileContent.slice(prevLen, currLen));
-              p_len  = currLen;
-              // Now you can use the file content as needed
-            } else {
-              console.log('Conversion failed.');
-            }
-          })
-          .catch((error) => {
-            console.error('Error:', error);
-          });
+  try {
+    const perm = await Audio.requestPermissionsAsync();
+    if (perm.status === "granted") {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true
+      });
 
+      const recordingInstance = new Audio.Recording();
+      await recordingInstance.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
+      await recordingInstance.startAsync();
 
-        // console.log(`Recording Status: ${status.isRecording}, Duration: ${duration}, Meterring: ${status.metering}, Uri: ${uri}`)
-        // if(duration >10 && duration - prevDuration > 0){
-        //       sendBlob(uri);
-        //   }
-        //  setPrevDuration(duration);
-        });
+      setRecording(recordingInstance);
+      setRecordingBackLog(prevBackLog => [...prevBackLog, recordingInstance]);
 
-        await recordingInstance.startAsync();
-      }
-    } catch (err) {
-      console.error('Failed to start recording', err);
+      await uploadChunksToServer(recordingInstance, 4096, 100);
+
+      recordingInstance.setOnRecordingStatusUpdate(async (status) => {
+      });
+
     }
+  } catch (err) {
+    console.error('Failed to start recording', err);
   }
+}
 
   async function stopRecording() {
     setPrevLen(0);
