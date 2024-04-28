@@ -82,13 +82,24 @@ async function startRecording() {
       });
 
       const recordingInstance = new Audio.Recording();
-      await recordingInstance.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
+      await recordingInstance.prepareToRecordAsync({
+        android:{
+          extension: '.wav',
+          linearPCMIsBigEndian:false,
+
+        },
+        ios:{
+          extension: '.wav',
+          linearPCMIsBigEndian:false,
+          },
+      });
+
       await recordingInstance.startAsync();
 
       setRecording(recordingInstance);
       setRecordingBackLog(prevBackLog => [...prevBackLog, recordingInstance]);
 
-      await uploadChunksToServer(recordingInstance, 4096, 100);
+      await uploadChunksToServer(recordingInstance, 96000, 950);
 
       recordingInstance.setOnRecordingStatusUpdate(async (status) => {
       });

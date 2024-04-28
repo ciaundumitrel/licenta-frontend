@@ -11,11 +11,12 @@ const sleep = (ms) => {
 
 export async function uploadChunksToServer(recordingInstance, chunkSize, delayBetweenChunks) {
   console.log('calling sending');
+  await sleep(4000);
 
   let info = await FileSystem.getInfoAsync(recordingInstance.getURI());
   let uri = info.uri;
   let currentPosition = 0;
-  await sleep(5000);
+
   let current_file_size = info.size;
   let prev_pos = 0;
 
@@ -26,7 +27,7 @@ export async function uploadChunksToServer(recordingInstance, chunkSize, delayBe
       let info = await FileSystem.getInfoAsync(recordingInstance.getURI());
       current_file_size = info.size;
 
-        if (currentPosition + 24 >= current_file_size &&  currentPosition === prev_pos && prev_pos !== 0){
+        if (currentPosition + chunkSize >= current_file_size &&  currentPosition === prev_pos && prev_pos !== 0){
           console.log('blocked')
           continue;
 
@@ -36,9 +37,9 @@ export async function uploadChunksToServer(recordingInstance, chunkSize, delayBe
           const fileChunk = await FileSystem.readAsStringAsync(uri, {
               encoding: FileSystem.EncodingType.Base64,
               position: currentPosition,
-              length: 24
+              length: chunkSize
             })
-            currentPosition += 24;
+            currentPosition += chunkSize;
             socket.emit('audioData', fileChunk);
           }
           prev_pos = currentPosition;
@@ -48,7 +49,7 @@ export async function uploadChunksToServer(recordingInstance, chunkSize, delayBe
     catch (e) {
       console.log(e);
     }
-    if (recordingInstance._isDoneRecording && current_file_size - currentPosition < 24){
+    if (recordingInstance._isDoneRecording && current_file_size - currentPosition < chunkSize){
           const fileChunk = await FileSystem.readAsStringAsync(uri, {
           encoding: FileSystem.EncodingType.Base64,
           position: currentPosition,
@@ -58,6 +59,8 @@ export async function uploadChunksToServer(recordingInstance, chunkSize, delayBe
         socket.emit('audioData', fileChunk);
         break
       }
+      await sleep(delayBetweenChunks);
+
   }
 
 
@@ -73,27 +76,3 @@ export async function uploadChunksToServer(recordingInstance, chunkSize, delayBe
 }
 
 
-
-
-    //
-    // try {
-    //   const fileChunk = await FileSystem.readAsStringAsync(uri, {
-    //     encoding: FileSystem.EncodingType.Base64,
-    //     position: startPosition,
-    //     length: length
-    //   });
-    //
-    //   // Send the file chunk to the server or emit it via socket
-    //   socket.emit('audioData', fileChunk);
-    //   console.log(startPosition, fileSize);
-    //   console.log(fileChunk);
-    //
-    //   // Introduce delay between chunks (if needed)
-    //   await new Promise(resolve => setTimeout(resolve, delayBetweenChunks));
-    //
-    // } catch (error) {
-    //   console.error('Error reading or uploading chunk:', error);
-    //   // Handle error as needed (e.g., retry, notify user)
-    // }
-    //
-    // startPosition = endPosition;
