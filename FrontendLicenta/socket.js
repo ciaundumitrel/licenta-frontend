@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 import * as FileSystem from "expo-file-system";
 
-export const socket = io('http://192.168.1.2:8000'); // use the IP address of your machine
+export const socket = io('http://192.168.1.3:8000'); // use the IP address of your machine
 
 
 const sleep = (ms) => {
@@ -10,7 +10,6 @@ const sleep = (ms) => {
 
 
 export async function uploadChunksToServer(recordingInstance, chunkSize, delayBetweenChunks) {
-  console.log('calling sending');
   await sleep(4000);
 
   let info = await FileSystem.getInfoAsync(recordingInstance.getURI());
@@ -19,9 +18,9 @@ export async function uploadChunksToServer(recordingInstance, chunkSize, delayBe
 
   let current_file_size = info.size;
   let prev_pos = 0;
+  let seconds = 5;
 
   do{
-
     try{
 
       let info = await FileSystem.getInfoAsync(recordingInstance.getURI());
@@ -33,7 +32,6 @@ export async function uploadChunksToServer(recordingInstance, chunkSize, delayBe
 
         }
         else{
-          console.log(currentPosition, current_file_size);
           const fileChunk = await FileSystem.readAsStringAsync(uri, {
               encoding: FileSystem.EncodingType.Base64,
               position: currentPosition,
@@ -59,19 +57,22 @@ export async function uploadChunksToServer(recordingInstance, chunkSize, delayBe
         socket.emit('audioData', fileChunk);
         break
       }
-      await sleep(delayBetweenChunks);
+
+    if(seconds < parseInt(current_file_size / 96000)){
+        socket.emit('write_file', 1);
+        seconds = seconds + 5;
+    }
+
+    await sleep(delayBetweenChunks);
 
   }
 
 
   while(currentPosition < current_file_size)
-  console.log("final report >> ", currentPosition, current_file_size)
-  console.log('exiting')
+  console.log("final report >> ", currentPosition, current_file_size);
+  console.log('exiting');
+  socket.emit('write_file', 1);
 
-   const fileChunk = await FileSystem.readAsStringAsync(uri, {
-    encoding: FileSystem.EncodingType.Base64,
-  })
-  socket.emit('data', fileChunk);
 
 }
 

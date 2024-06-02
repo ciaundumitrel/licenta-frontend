@@ -1,189 +1,73 @@
-import React, {useEffect, useState} from 'react';
+import React from 'react';
 import { StyleSheet, Text, View, Button } from 'react-native';
-import { Audio } from 'expo-av';
-import { io } from 'socket.io-client';
-import * as FileSystem from 'expo-file-system';
-import {socket, uploadChunksToServer} from './socket';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import EncounteredBirds from './EncounteredBirds';
+import Recording from './Recording';
 
-const URL = 'http://192.168.1.2:8000/';
+const Stack = createStackNavigator();
 
-
-
-export default function App() {
-  const [recording, setRecording] = React.useState();
-  const [recordings, setRecordings] = React.useState([]);
-  const [sending, setSending] = useState(false);
-  const [recordingBackLog, setRecordingBackLog] = useState([]);
-
-  const [isRecording, setIsRecording] = React.useState(false);
-  const [prevLen, setPrevLen] = useState(0);
-  const [isConnected, setIsConnected] = useState(false);
-  const [transport, setTransport] = useState('N/A');
-  let sum = 0;
-  let p_len = 0;
-
-  useEffect(() => {
-    if (socket.connected) {
-      onConnect();
-    }
-
-    function onConnect() {
-      setIsConnected(true);
-      setTransport(socket.io.engine.transport.name);
-
-      socket.io.engine.on('upgrade', (transport) => {
-        setTransport(transport.name);
-      });
-    }
-
-    function onDisconnect() {
-      setIsConnected(false);
-      setTransport('N/A');
-    }
-
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-
-    return () => {
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-    };
-  }, []);
-
-const convertMP4ToBase64 = async (uri, delay = 0) => {
-  try {
-    // Read the file
-    const fileContent = await FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.Base64,
-      position: 0,
-      length: 100
-    });
-
-    // Introduce optional delay (if delay is a positive number)
-    if (delay > 0) {
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-
-    return fileContent;
-  } catch (error) {
-    console.error('Error converting MP4 to base64:', error);
-    return null;
-  }
-};
-
-async function startRecording() {
-
-  try {
-    const perm = await Audio.requestPermissionsAsync();
-    if (perm.status === "granted") {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true
-      });
-
-      const recordingInstance = new Audio.Recording();
-      await recordingInstance.prepareToRecordAsync({
-        android:{
-          extension: '.wav',
-          linearPCMIsBigEndian:false,
-
-        },
-        ios:{
-          extension: '.wav',
-          linearPCMIsBigEndian:false,
-          },
-      });
-
-      await recordingInstance.startAsync();
-
-      setRecording(recordingInstance);
-      setRecordingBackLog(prevBackLog => [...prevBackLog, recordingInstance]);
-
-      await uploadChunksToServer(recordingInstance, 96000, 950);
-
-      recordingInstance.setOnRecordingStatusUpdate(async (status) => {
-      });
-
-    }
-  } catch (err) {
-    console.error('Failed to start recording', err);
-  }
-}
-
-  async function stopRecording() {
-    setPrevLen(0);
-    try {
-      if (!recording) return;
-
-      await recording.stopAndUnloadAsync();
-      let allRecordings = [...recordings];
-      const { sound, status } = await recording.createNewLoadedSoundAsync();
-      allRecordings.push({
-        sound: sound,
-        duration: getDurationFormatted(status.durationMillis),
-        file: recording.getURI()
-      });
-      setRecordings(allRecordings);
-    } catch (err) {
-      console.error('Failed to stop recording', err);
-    } finally {
-      setRecording(undefined);
-    }
-  }
-
-  function getDurationFormatted(milliseconds) {
-    const minutes = milliseconds / 1000 / 60;
-    const seconds = Math.round((minutes - Math.floor(minutes)) * 60);
-    return seconds < 10 ? `${Math.floor(minutes)}:0${seconds}` : `${Math.floor(minutes)}:${seconds}`;
-  }
-
-  function toggleRecording() {
-    setIsRecording(prevState => !prevState);
-  }
-
-  function getRecordingLines() {
-    return recordings.map((recordingLine, index) => {
-      return (
-        <View key={index} style={styles.row}>
-          <Text style={styles.fill}>
-            Recording #{index + 1} | {recordingLine.duration}
-          </Text>
-          <Button onPress={() => recordingLine.sound.replayAsync()} title="Play"></Button>
-          <Button title="Send Recording to Backend"/>
-        </View>
-      );
-    });
-  }
-
-  function clearRecordings() {
-    setRecordings([]);
-  }
-
+function HomeScreen({ navigation }) {
   return (
     <View style={styles.container}>
-      <Button title={recording ? 'Stop Recording' : 'Start Recording\n\n\n'} onPress={recording ? stopRecording : startRecording} />
-      {getRecordingLines()}
-      <Button title={recordings.length > 0 ? 'Clear Recordings' : ''} onPress={clearRecordings} />
+      <Text style={styles.welcomeText}>Bird Song Classifier</Text>
+      <Text style={styles.descriptionText}>
+        Record bird songs and classify them using our advanced AI model.
+      </Text>
+      <View style={styles.row}>
+        <Button title="Encountered Birds" onPress={() => navigation.navigate('EncounteredBirds')} />
+        <Button title="Find New Bird" onPress={() => navigation.navigate('Recording')} />
+      </View>
     </View>
+  );
+}
+
+export default function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="Home">
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="EncounteredBirds" component={EncounteredBirds} />
+        <Stack.Screen name="Recording" component={Recording} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f0f8ff',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 20,
+  },
+  welcomeText: {
+    top: 10,
+    marginTop: 30,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+    display: 'flex',
+  },
+  descriptionText: {
+    top: 10,
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 10,
-    marginRight: 40
+    marginBottom: 20,
+    width: '100%',
+    paddingHorizontal: 20,
   },
-  fill: {
+  recorderContainer: {
     flex: 1,
-    margin: 15
-  }
+    marginLeft: 20,
+  },
 });
