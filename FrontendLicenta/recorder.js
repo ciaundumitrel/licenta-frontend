@@ -2,8 +2,10 @@ import * as FileSystem from "expo-file-system";
 import {Audio} from "expo-av";
 import {socket, uploadChunksToServer} from './socket';
 import React, {useEffect, useState} from 'react';
-import { StyleSheet, Text, View, Button, ScrollView } from 'react-native';
-
+import {StyleSheet, Text, View, Button, ScrollView, TouchableOpacity} from 'react-native';
+import MicIcon from './assets/icons/MicIcon.svg';
+import StopIcon from './assets/icons/StopIcon.svg';
+import Svg, { Path } from "react-native-svg"
 
 
 export default function Recorder(){
@@ -17,6 +19,18 @@ const [recording, setRecording] = React.useState();
   const [prevLen, setPrevLen] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const [transport, setTransport] = useState('N/A');
+
+const MicIcon = () => (
+  <Svg width={20} height={20} viewBox="0 0 64 64">
+    <Path d="M32 0a10 10 0 00-10 10v22a10 10 0 0020 0V10A10 10 0 0032 0zm18 32a18 18 0 01-36 0h-4a22 22 0 0044 0h-4zm-18 22a4 4 0 01-4-4h8a4 4 0 01-4 4z" />
+  </Svg>
+);
+
+const StopIcon = () => (
+  <Svg width={20} height={20} viewBox="0 0 64 64">
+    <Path d="M16 16h32v32H16z" />
+  </Svg>
+);
 
   useEffect(() => {
     if (socket.connected) {
@@ -49,14 +63,12 @@ const [recording, setRecording] = React.useState();
 
 const convertMP4ToBase64 = async (uri, delay = 0) => {
   try {
-    // Read the file
     const fileContent = await FileSystem.readAsStringAsync(uri, {
       encoding: FileSystem.EncodingType.Base64,
       position: 0,
       length: 100
     });
 
-    // Introduce optional delay (if delay is a positive number)
     if (delay > 0) {
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
@@ -83,14 +95,11 @@ async function startRecording() {
         android:{
           extension: '.wav',
           linearPCMIsBigEndian:false,
-
         },
         ios:{
           extension: '.wav',
           linearPCMIsBigEndian:false,
           audioQuality: 64,
-          // sampleRate: 44100,
-
           },
       });
 
@@ -99,7 +108,7 @@ async function startRecording() {
       setRecording(recordingInstance);
       setRecordingBackLog(prevBackLog => [...prevBackLog, recordingInstance]);
 
-      await uploadChunksToServer(recordingInstance, 96000, 950);
+      await uploadChunksToServer(recordingInstance,  96000 * 3, 950 * 5 );
 
       recordingInstance.setOnRecordingStatusUpdate(async (status) => {
       });
@@ -149,7 +158,6 @@ async function startRecording() {
             Recording #{index + 1} | {recordingLine.duration}
           </Text>
           <Button onPress={() => recordingLine.sound.replayAsync()} title="Play"></Button>
-          <Button title="Send Recording to Backend"/>
         </View>
       );
     });
@@ -160,47 +168,67 @@ async function startRecording() {
   }
 
   return (
-     <View style={styles.container}>
+   <View style={styles.container}>
       <View style={styles.buttonContainer}>
-        <Button title={recording ? 'Stop Recording' : 'Start Recording\n\n\n'} onPress={recording ? stopRecording : startRecording} />
+        <TouchableOpacity onPress={recording ? stopRecording : startRecording} style={styles.microphoneButton}>
+        <TouchableOpacity onPress={recording ? stopRecording : startRecording} style={styles.microphoneButton}>
+          {recording ? <StopIcon /> : <MicIcon />}
+        </TouchableOpacity>
+        </TouchableOpacity>
       </View>
-      <View style={styles.separator}>
-        <Text>----------------------------------------------------------------------------------------------------------------------------</Text>
-      </View>
-      <ScrollView style={styles.recordingsContainer}>
-        {getRecordingLines()}
-        {recordings.length > 0 && <Button title="Clear Recordings" onPress={clearRecordings} />}
+     <View style={styles.separatorContainer}>
+       <Text style={styles.separator}>----------------------------------------------------</Text>
+     </View>
+     <ScrollView style={styles.recordingsContainer}>
+       {getRecordingLines()}
+        {recordings.length > 0 && (
+          <View style={styles.clearButtonContainer}>
+            <TouchableOpacity onPress={clearRecordings} style={styles.clearButton}>
+              <Text style={styles.clearButtonText}>Clear Recordings</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: 16,
     backgroundColor: '#fff',
   },
   buttonContainer: {
-    justifyContent: 'center',
+    marginBottom: 20,
     alignItems: 'center',
-    height: "300px",
-    padding: 20,
   },
-  recordingsContainer: {
-    padding: 20,
+  microphoneButton: {
+    backgroundColor: '#f0f8ff',
+    padding: 10,
+    borderRadius: 50,
   },
-  row: {
-    flexDirection: 'row',
+  separatorContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  fill: {
-    flex: 1,
-    margin: 15,
+    marginVertical: 10,
   },
   separator: {
-    height: 1,
-    width: '100%',
-    backgroundColor: '#000000',
+    fontSize: 14,
+    color: '#ccc',
+  },
+  recordingsContainer: {
+    flex: 1,
+  },
+  clearButtonContainer: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  clearButton: {
+    backgroundColor: '#FF3B30',
+    padding: 10,
+    borderRadius: 5,
+  },
+  clearButtonText: {
+    color: '#fff',
   },
 });

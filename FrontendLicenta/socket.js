@@ -42,7 +42,6 @@ export async function uploadChunksToServer(recordingInstance, chunkSize, delayBe
           }
           prev_pos = currentPosition;
 
-
     }
     catch (e) {
       console.log(e);
@@ -58,10 +57,10 @@ export async function uploadChunksToServer(recordingInstance, chunkSize, delayBe
         break
       }
 
-    if(seconds < parseInt(current_file_size / 96000)){
-        socket.emit('write_file', 1);
-        seconds = seconds + 5;
-    }
+    // if(seconds < parseInt(current_file_size / 96000)){
+    //     socket.emit('write_file', 1);
+    //     seconds = seconds + 5;
+    // }
 
     await sleep(delayBetweenChunks);
 

@@ -1,73 +1,65 @@
 import React from 'react';
-import { StyleSheet, Text, View, Button } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import EncounteredBirds from './EncounteredBirds';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
+
+import BirdDex from './BirdDex';
 import Recording from './Recording';
+import BirdDetails from "./BirdDetails";
+import Profile from "./Profile";
+import Friends from "./Friends";
+import FriendProfile from "./FriendsProfile";
+import Settings from "./Settings";
+import {AuthProvider} from "./AuthContext";
+import Login from "./Login";
+import Signup from "./Signup";
 
-const Stack = createStackNavigator();
+const MainStack = createStackNavigator();
+const Tab = createBottomTabNavigator();
 
-function HomeScreen({ navigation }) {
+function MainTabNavigator() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.welcomeText}>Bird Song Classifier</Text>
-      <Text style={styles.descriptionText}>
-        Record bird songs and classify them using our advanced AI model.
-      </Text>
-      <View style={styles.row}>
-        <Button title="Encountered Birds" onPress={() => navigation.navigate('EncounteredBirds')} />
-        <Button title="Find New Bird" onPress={() => navigation.navigate('Recording')} />
-      </View>
-    </View>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+          if (route.name === 'BirdDex') {
+            iconName = focused ? 'list-circle' : 'list-circle-outline';
+          } else if (route.name === 'Recording') {
+            iconName = focused ? 'mic-circle' : 'mic-circle-outline';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'person-circle' : 'person-circle-outline';
+          }
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+      })}
+      tabBarOptions={{
+        activeTintColor: 'tomato',
+        inactiveTintColor: 'gray',
+      }}
+    >
+      <Tab.Screen name="BirdDex" component={BirdDex} />
+      <Tab.Screen name="Recording" component={Recording} />
+      <Tab.Screen name="Profile" component={Profile} />
+    </Tab.Navigator>
   );
 }
 
 export default function App() {
   return (
+  <AuthProvider>
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="EncounteredBirds" component={EncounteredBirds} />
-        <Stack.Screen name="Recording" component={Recording} />
-      </Stack.Navigator>
+      <MainStack.Navigator>
+        <MainStack.Screen name="Profile" component={MainTabNavigator} options={{ headerShown: false }} />
+        <MainStack.Screen name="BirdDetails" component={BirdDetails} options={{ title: 'Bird Details' }} />
+        <MainStack.Screen name="Friends" component={Friends} options={{ title: 'Friends' }} />
+        <MainStack.Screen name="FriendProfile" component={FriendProfile} options={{ title: 'Friend Profile' }} />
+        <MainStack.Screen name="Settings" component={Settings} options={{ title: 'Settings' }} />
+        <MainStack.Screen name="Login" component={Login} />
+        <MainStack.Screen name="Signup" component={Signup} />
+      </MainStack.Navigator>
     </NavigationContainer>
+  </AuthProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f8ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  welcomeText: {
-    top: 10,
-    marginTop: 30,
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-    display: 'flex',
-  },
-  descriptionText: {
-    top: 10,
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    width: '100%',
-    paddingHorizontal: 20,
-  },
-  recorderContainer: {
-    flex: 1,
-    marginLeft: 20,
-  },
-});

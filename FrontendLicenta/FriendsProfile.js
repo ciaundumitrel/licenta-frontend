@@ -1,10 +1,13 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-export default function EncounteredBirds() {
+export default function FriendProfile({ route }) {
+  const { friend } = route.params;
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Encountered Birds</Text>
+      <Text style={styles.title}>{friend.name}'s Profile</Text>
+      {/* Add more friend details here */}
     </View>
   );
 }
@@ -21,5 +24,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
+    marginBottom: 20,
   },
 });
